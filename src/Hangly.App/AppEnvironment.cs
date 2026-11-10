@@ -1469,9 +1469,8 @@ public sealed partial class AppEnvironment : IDisposable
             new MenuEntry("Charms", Children: charms),
             new MenuEntry("Rope", Children: ropes),
             .. DisplayMenu(settings.Overlay),
-
-            // No Notifications and no Quit (Sharan, 4 Oct): notifications are not kept anywhere to open, and Hangly is
-            // meant to stay running; the macOS menu bar matches.
+            MenuEntry.Separator,
+            new MenuEntry("Exit", Quit),
         ];
     }
 

@@ -1370,24 +1370,6 @@ public sealed partial class CustomizeWindow : Window
         RefreshDetailState();
     }
 
-    private void OnNimbuPreviewFreshClicked(object sender, RoutedEventArgs args)
-    {
-        store.Update(s => s with { NimbuMirchiSimulatedHours = 0 });
-        RefreshDetailState();
-    }
-
-    private void OnNimbuPreviewWiltingClicked(object sender, RoutedEventArgs args)
-    {
-        store.Update(s => s with { NimbuMirchiSimulatedHours = 25.0 });
-        RefreshDetailState();
-    }
-
-    private void OnNimbuPreviewDriedClicked(object sender, RoutedEventArgs args)
-    {
-        store.Update(s => s with { NimbuMirchiSimulatedHours = 50.0 });
-        RefreshDetailState();
-    }
-
     private void OnCountChanged(object sender, SelectionChangedEventArgs args)
     {
         if (isLoading || CountChoice.SelectedIndex < 0)

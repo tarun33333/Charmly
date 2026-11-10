@@ -427,29 +427,6 @@
                                             Click="OnRefreshNimbuClicked"
                                             Content="Hang Fresh Nimbu-Mirchi"
                                             Style="{StaticResource AccentButtonStyle}" />
-                                        <TextBlock
-                                            Margin="0,4,0,0"
-                                            FontSize="11"
-                                            Opacity="0.6"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Text="TEST / PREVIEW DRYING STAGES:" />
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <Button
-                                                Padding="6,4,6,4"
-                                                Click="OnNimbuPreviewFreshClicked"
-                                                Content="Fresh (0h)"
-                                                FontSize="11" />
-                                            <Button
-                                                Padding="6,4,6,4"
-                                                Click="OnNimbuPreviewWiltingClicked"
-                                                Content="Wilting (24h)"
-                                                FontSize="11" />
-                                            <Button
-                                                Padding="6,4,6,4"
-                                                Click="OnNimbuPreviewDriedClicked"
-                                                Content="Dried (48h)"
-                                                FontSize="11" />
-                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
