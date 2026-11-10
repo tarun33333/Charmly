@@ -10,15 +10,28 @@ public partial class App : Application
 {
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        if (e.Args.Contains("--uninstall", StringComparer.OrdinalIgnoreCase))
+        Program.Log("App.OnStartup called");
+        try
         {
-            PerformUninstall(silent: e.Args.Contains("--quiet", StringComparer.OrdinalIgnoreCase));
-            Shutdown();
-            return;
-        }
+            if (e.Args.Contains("--uninstall", StringComparer.OrdinalIgnoreCase))
+            {
+                PerformUninstall(silent: e.Args.Contains("--quiet", StringComparer.OrdinalIgnoreCase));
+                Shutdown();
+                return;
+            }
 
-        var main = new MainWindow();
-        main.Show();
+            Program.Log("Instantiating MainWindow...");
+            var main = new MainWindow();
+            Program.Log("Showing MainWindow...");
+            main.Show();
+            Program.Log("MainWindow.Show() called.");
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"Error in OnStartup: {ex}");
+            MessageBox.Show($"Failed to launch installer: {ex.Message}\n\n{ex.StackTrace}", "Charmly Setup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown();
+        }
     }
 
     private static void PerformUninstall(bool silent)

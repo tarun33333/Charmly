@@ -5,8 +5,7 @@
         Height="480" Width="600"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="{StaticResource WindowBg}"
-        Icon="../Hangly.App/Assets/hangly.ico">
+        Background="{StaticResource WindowBg}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -28,7 +27,7 @@
                     <TextBlock x:Name="HeaderTitle" Text="Welcome to Charmly Setup" FontSize="15" FontWeight="SemiBold" />
                     <TextBlock x:Name="HeaderSubtitle" Text="Interactive Desktop Charms for Windows" FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,2,0,0" />
                 </StackPanel>
-                <Image Grid.Column="1" Source="../Hangly.App/Assets/hangly.ico" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" />
+                <Image x:Name="HeaderIcon" Grid.Column="1" Width="36" Height="36" RenderOptions.BitmapScalingMode="HighQuality" />
             </Grid>
         </Border>
 

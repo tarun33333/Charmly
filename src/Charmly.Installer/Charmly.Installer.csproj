@@ -5,7 +5,8 @@
     <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>../Hangly.App/Assets/hangly.ico</ApplicationIcon>
+    <StartupObject>Charmly.Installer.Program</StartupObject>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>CharmlySetup</AssemblyName>
     <RootNamespace>Charmly.Installer</RootNamespace>
     <Product>Charmly Setup</Product>
@@ -16,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="../Hangly.App/Assets/hangly.ico" />
+    <Resource Include="Assets\icon.ico" />
     <EmbeddedResource Include="../../publish/Charmly-v0.9.0-Windows-x64.zip" LogicalName="Payload.zip" Condition="Exists('../../publish/Charmly-v0.9.0-Windows-x64.zip')" />
   </ItemGroup>
 

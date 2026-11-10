@@ -15,7 +15,21 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        Program.Log("MainWindow ctor: InitializeComponent starting...");
         InitializeComponent();
+        Program.Log("MainWindow ctor: InitializeComponent finished.");
+
+        try
+        {
+            var iconUri = new Uri("pack://application:,,,/Assets/icon.ico", UriKind.RelativeOrAbsolute);
+            var bmp = new System.Windows.Media.Imaging.BitmapImage(iconUri);
+            Icon = bmp;
+            HeaderIcon.Source = bmp;
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"MainWindow ctor: Non-fatal icon load exception: {ex.Message}");
+        }
 
         defaultInstallPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -25,6 +39,7 @@ public partial class MainWindow : Window
         InstallPathBox.Text = defaultInstallPath;
         LoadDisclaimerText();
         UpdateStepView();
+        Program.Log("MainWindow ctor: Completed successfully.");
     }
 
     private void LoadDisclaimerText()
