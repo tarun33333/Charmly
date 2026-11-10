@@ -30,6 +30,9 @@ $ZipPath = Join-Path $WorkspaceRoot "publish\$ZipName"
 Write-Host "[*] Publishing self-contained Charmly ($Architecture, Release)..." -ForegroundColor Cyan
 & dotnet publish "src\Hangly.App\Hangly.App.csproj" -c Release -r $Architecture --self-contained true -o $PublishDir
 
+# Clean up any legacy Hangly binaries so the package contains Charmly.exe
+Remove-Item (Join-Path $PublishDir "Hangly.*") -Force -ErrorAction SilentlyContinue
+
 Write-Host "[*] Creating Release ZIP package..." -ForegroundColor Cyan
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 if (Test-Path $ZipPath) {

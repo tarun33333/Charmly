@@ -53,7 +53,7 @@ public partial class App : Application
         try
         {
             // Stop any running Charmly/Hangly process
-            foreach (var proc in System.Diagnostics.Process.GetProcessesByName("Hangly"))
+            foreach (var proc in System.Diagnostics.Process.GetProcessesByName("Charmly").Concat(System.Diagnostics.Process.GetProcessesByName("Hangly")))
             {
                 try { proc.Kill(); proc.WaitForExit(3000); } catch { }
             }

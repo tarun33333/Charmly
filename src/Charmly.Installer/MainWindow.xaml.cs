@@ -180,7 +180,11 @@ holders.
         {
             if (LaunchCheckBox.IsChecked == true)
             {
-                string exePath = Path.Combine(InstallPathBox.Text.Trim(), "Hangly.exe");
+                string exePath = Path.Combine(InstallPathBox.Text.Trim(), "Charmly.exe");
+                if (!File.Exists(exePath))
+                {
+                    exePath = Path.Combine(InstallPathBox.Text.Trim(), "Hangly.exe");
+                }
                 if (File.Exists(exePath))
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -227,7 +231,7 @@ holders.
                 Directory.CreateDirectory(targetDir);
 
                 // Stop any running Charmly instance before extracting
-                foreach (var proc in System.Diagnostics.Process.GetProcessesByName("Hangly"))
+                foreach (var proc in System.Diagnostics.Process.GetProcessesByName("Charmly").Concat(System.Diagnostics.Process.GetProcessesByName("Hangly")))
                 {
                     try { proc.Kill(); proc.WaitForExit(2000); } catch { }
                 }
@@ -295,7 +299,11 @@ holders.
                     InstallingStatus.Text = "Creating shortcuts and registering uninstaller...";
                 });
 
-                string exePath = Path.Combine(targetDir, "Hangly.exe");
+                string exePath = Path.Combine(targetDir, "Charmly.exe");
+                if (!File.Exists(exePath))
+                {
+                    exePath = Path.Combine(targetDir, "Hangly.exe");
+                }
 
                 // Copy this installer as uninstaller into the target directory
                 try

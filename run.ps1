@@ -36,7 +36,10 @@ Write-Host "[*] Building Charmly ($Configuration, x64)..." -ForegroundColor Cyan
 & dotnet build "src\Hangly.App\Hangly.App.csproj" -c $Configuration -r win-x64 -p:Platform=x64 --no-restore
 
 if (-not $BuildOnly) {
-    $ExePath = Join-Path $WorkspaceRoot "src\Hangly.App\bin\x64\$Configuration\net9.0-windows10.0.22621.0\win-x64\Hangly.exe"
+    $ExePath = Join-Path $WorkspaceRoot "src\Hangly.App\bin\x64\$Configuration\net9.0-windows10.0.22621.0\win-x64\Charmly.exe"
+    if (-not (Test-Path $ExePath)) {
+        $ExePath = Join-Path $WorkspaceRoot "src\Hangly.App\bin\x64\$Configuration\net9.0-windows10.0.22621.0\win-x64\Hangly.exe"
+    }
     if (Test-Path $ExePath) {
         Write-Host "[+] Launching Charmly Desktop Charms & Library..." -ForegroundColor Green
         Write-Host "Look at the top of your screen or click the tray icon for Customize & Library!" -ForegroundColor Yellow

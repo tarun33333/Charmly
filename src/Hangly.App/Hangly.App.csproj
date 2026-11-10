@@ -50,10 +50,9 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 
     <ApplicationIcon>Assets/hangly.ico</ApplicationIcon>
-    <AssemblyName>Hangly</AssemblyName>
-
-    <!-- Identity. The About page reads these back rather than restating them, so there
-         is one place they are written and the window cannot disagree with the binary. -->
+    <AssemblyName>Charmly</AssemblyName>
+    <Title>Charmly</Title>
+    <Description>Charmly: Handcrafted interactive desktop charms by Tarun</Description>
     <Product>Charmly</Product>
     <Company>Tarun</Company>
     <Authors>Tarun</Authors>
