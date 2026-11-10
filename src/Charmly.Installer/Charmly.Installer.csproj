@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>../Hangly.App/Assets/hangly.ico</ApplicationIcon>
+    <AssemblyName>CharmlySetup</AssemblyName>
+    <RootNamespace>Charmly.Installer</RootNamespace>
+    <Product>Charmly Setup</Product>
+    <Company>Tarun</Company>
+    <Authors>Tarun</Authors>
+    <Copyright>Copyright © 2026 Tarun</Copyright>
+    <Version>0.9.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="../Hangly.App/Assets/hangly.ico" />
+    <EmbeddedResource Include="../../publish/Charmly-v0.9.0-Windows-x64.zip" LogicalName="Payload.zip" Condition="Exists('../../publish/Charmly-v0.9.0-Windows-x64.zip')" />
+  </ItemGroup>
+
+</Project>

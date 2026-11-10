@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Authors>Tarun</Authors>
+    <Company>Tarun</Company>
+    <Copyright>Copyright © 2026 Tarun</Copyright>
+    <Product>Charmly</Product>
+    <!-- The floor for everything in the solution. The app overrides it, and the release
+         build overrides that with the tag. -->
+    <Version>0.9.0</Version>
+  </PropertyGroup>
+</Project>

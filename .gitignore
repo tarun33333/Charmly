@@ -1,0 +1,51 @@
+# Build output
+bin/
+obj/
+publish/
+installer/
+artifacts/
+[Bb]in/
+[Oo]bj/
+[Aa]pp[Pp]ackages/
+BundleArtifacts/
+TestResults/
+*.trx
+*.xbf
+*.log
+*.exe
+*.zip
+
+# Creator Studio's subject model, fetched and hash-checked by the build (Hangly.App.csproj).
+.models/
+
+# IDE
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+.vs/
+.idea/
+.vscode/
+Generated Files/
+
+# Packaging
+*.msix
+*.appx
+*.appxbundle
+
+# macOS
+.DS_Store
+.AppleDouble
+._*
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Audio placeholder
+src/Hangly.App/Assets/Sounds/SpiderManEntrance.wav
+
+# Local tool caches
+.dotnet/
+.appdata/
+.nuget/
