@@ -1361,8 +1361,54 @@ public sealed partial class CustomizeWindow : Window
             {
                 Detail.SetImage(new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(thumbPath)));
             }
+
+            double lifespan = NimbuMirchiLifecycle.GetLifespanHours(settings);
+            if (Math.Abs(NimbuLifespanSlider.Value - lifespan) > 0.05)
+            {
+                NimbuLifespanSlider.Value = lifespan;
+            }
+            UpdateNimbuLifespanLabel(lifespan);
         }
     }
+
+    private void UpdateNimbuLifespanLabel(double hours)
+    {
+        double wilting = hours / 2.0;
+        string daysText = hours >= 24.0 ? $" ({(hours / 24.0):F1} days)" : string.Empty;
+        string wiltingText = wilting < 1.0 ? $"{(int)(wilting * 60)} min" : $"{wilting:F1}h";
+        NimbuLifespanLabel.Text = $"Dries after: {(int)hours} hours{daysText} · Wilts at {wiltingText}";
+    }
+
+    private void OnNimbuLifespanSliderChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (isLoading || detailed is null || !NimbuMirchiLifecycle.IsNimbuMirchi(detailed.Id))
+        {
+            return;
+        }
+
+        double hours = Math.Clamp(Math.Round(args.NewValue), 1, 168);
+        UpdateNimbuLifespanLabel(hours);
+
+        if (Math.Abs(store.Settings.NimbuMirchiLifespanHours - hours) > 0.05)
+        {
+            store.Update(s => s with { NimbuMirchiLifespanHours = hours });
+            RefreshDetailState();
+        }
+    }
+
+    private void SetNimbuLifespan(double hours)
+    {
+        NimbuLifespanSlider.Value = hours;
+        store.Update(s => s with { NimbuMirchiLifespanHours = hours });
+        RefreshDetailState();
+    }
+
+    private void OnNimbuPreset1hClicked(object sender, RoutedEventArgs args) => SetNimbuLifespan(1.0);
+    private void OnNimbuPreset12hClicked(object sender, RoutedEventArgs args) => SetNimbuLifespan(12.0);
+    private void OnNimbuPreset1dClicked(object sender, RoutedEventArgs args) => SetNimbuLifespan(24.0);
+    private void OnNimbuPreset2dClicked(object sender, RoutedEventArgs args) => SetNimbuLifespan(48.0);
+    private void OnNimbuPreset3dClicked(object sender, RoutedEventArgs args) => SetNimbuLifespan(72.0);
+    private void OnNimbuPreset7dClicked(object sender, RoutedEventArgs args) => SetNimbuLifespan(168.0);
 
     private void OnRefreshNimbuClicked(object sender, RoutedEventArgs args)
     {

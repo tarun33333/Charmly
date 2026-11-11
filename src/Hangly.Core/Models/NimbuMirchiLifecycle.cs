@@ -29,15 +29,33 @@ public static class NimbuMirchiLifecycle
     /// <summary>Catalogue identifier for Nimbu-Mirchi.</summary>
     public const string CharmId = "nimbuMirchi";
 
-    /// <summary>After 24 hours (1 day), chillies start wilting.</summary>
+    /// <summary>Default duration in hours (2 days / 48 hours) until the charm is fully dried.</summary>
+    public const double DefaultLifespanHours = 48.0;
+
+    /// <summary>Legacy fallback constant for 24-hour wilting threshold.</summary>
     public const double WiltingHours = 24.0;
 
-    /// <summary>After 48 hours (2 days), the charm is fully dried and needs refreshing.</summary>
+    /// <summary>Legacy fallback constant for 48-hour dried threshold.</summary>
     public const double DriedHours = 48.0;
 
     /// <summary>Checks whether a charm id is Nimbu-Mirchi.</summary>
     public static bool IsNimbuMirchi(string? id) =>
         string.Equals(id, CharmId, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Gets the configured drying lifespan in hours.</summary>
+    public static double GetLifespanHours(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return settings.NimbuMirchiLifespanHours > 0 ? settings.NimbuMirchiLifespanHours : DefaultLifespanHours;
+    }
+
+    /// <summary>Gets the duration after which chillies begin wilting (halfway through the lifespan).</summary>
+    public static double GetWiltingHours(AppSettings settings) =>
+        GetLifespanHours(settings) / 2.0;
+
+    /// <summary>Gets the duration after which the charm is fully dried.</summary>
+    public static double GetDriedHours(AppSettings settings) =>
+        GetLifespanHours(settings);
 
     /// <summary>Calculates the current age in hours based on settings.</summary>
     public static double GetAgeHours(AppSettings settings)
@@ -61,11 +79,14 @@ public static class NimbuMirchiLifecycle
     public static NimbuStage GetStage(AppSettings settings)
     {
         double hours = GetAgeHours(settings);
-        if (hours >= DriedHours)
+        double dried = GetDriedHours(settings);
+        double wilting = GetWiltingHours(settings);
+
+        if (hours >= dried)
         {
             return NimbuStage.Dried;
         }
-        if (hours >= WiltingHours)
+        if (hours >= wilting)
         {
             return NimbuStage.Wilting;
         }
@@ -96,21 +117,31 @@ public static class NimbuMirchiLifecycle
     public static string GetStatusLabel(AppSettings settings)
     {
         double hours = GetAgeHours(settings);
+        double lifespan = GetLifespanHours(settings);
         NimbuStage stage = GetStage(settings);
 
         string timeText = hours switch
         {
             < 1.0 => "Hung just now",
-            < 24.0 => $"Hung {(int)hours} hours ago (Day 1)",
-            < 48.0 => $"Hung {(int)(hours / 24.0)} day ago ({(int)hours}h)",
-            _ => $"Hung {(int)(hours / 24.0)} days ago ({(int)hours}h)",
+            < 24.0 => $"Hung {(int)hours}h ago",
+            < 48.0 => $"Hung {(int)(hours / 24.0)}d {(int)(hours % 24)}h ago",
+            _ => $"Hung {(int)(hours / 24.0)}d {(int)(hours % 24)}h ago",
+        };
+
+        double remainingHours = Math.Max(0, lifespan - hours);
+        string remainingText = remainingHours switch
+        {
+            <= 0 => "Dried up",
+            < 1.0 => "Dries in <1h",
+            < 24.0 => $"Dries in {(int)Math.Ceiling(remainingHours)}h",
+            _ => $"Dries in {(remainingHours / 24.0):F1}d",
         };
 
         return stage switch
         {
-            NimbuStage.Dried => $"{timeText} \u2014 Dried up! Time to hang a fresh one.",
-            NimbuStage.Wilting => $"{timeText} \u2014 Wilting, turning olive & yellow.",
-            _ => $"{timeText} \u2014 Fresh green chillies & bright lemon.",
+            NimbuStage.Dried => $"{timeText} \u2014 Dried up! Time to hang a fresh one. ({remainingText})",
+            NimbuStage.Wilting => $"{timeText} \u2014 Wilting, turning olive & yellow. ({remainingText})",
+            _ => $"{timeText} \u2014 Fresh green chillies & bright lemon. ({remainingText})",
         };
     }
 

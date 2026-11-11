@@ -598,10 +598,16 @@ public sealed record AppSettings
     /// <summary>Simulated age in hours for testing Nimbu-Mirchi drying (null for real time).</summary>
     public double? NimbuMirchiSimulatedHours { get; init; }
 
+    /// <summary>Configured drying lifespan in hours (default 48 hours / 2 days).</summary>
+    public double NimbuMirchiLifespanHours { get; init; } = 48.0;
+
     public AppSettings Clamped() => this with
     {
         Overlay = Overlay.Clamped(),
         SoundVolume = double.IsFinite(SoundVolume) ? Math.Clamp(SoundVolume, 0, 1) : 0.14,
+        NimbuMirchiLifespanHours = double.IsFinite(NimbuMirchiLifespanHours) && NimbuMirchiLifespanHours >= 0.5
+            ? Math.Min(NimbuMirchiLifespanHours, 720.0)
+            : 48.0,
         DisplayName = DisplayName.Trim() is { Length: > 0 } trimmed
             ? trimmed[..Math.Min(trimmed.Length, DisplayNameLimit)]
             : string.Empty,

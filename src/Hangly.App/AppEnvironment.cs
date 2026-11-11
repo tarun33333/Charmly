@@ -1430,11 +1430,21 @@ public sealed partial class AppEnvironment : IDisposable
         if (settings.Overlay.CharmIds.Any(NimbuMirchiLifecycle.IsNimbuMirchi))
         {
             NimbuStage stage = NimbuMirchiLifecycle.GetStage(settings);
+            double hours = NimbuMirchiLifecycle.GetAgeHours(settings);
+            double lifespan = NimbuMirchiLifecycle.GetLifespanHours(settings);
+            double remaining = Math.Max(0, lifespan - hours);
+            string remainingStr = remaining switch
+            {
+                < 1.0 => "<1h",
+                < 24.0 => $"{(int)Math.Ceiling(remaining)}h",
+                _ => $"{(remaining / 24.0):F1}d",
+            };
+
             string nimbuTitle = stage switch
             {
                 NimbuStage.Dried => "Refresh Nimbu-Mirchi (Dried \u2014 Hang Fresh)",
-                NimbuStage.Wilting => "Refresh Nimbu-Mirchi (Wilting \u2014 Hang Fresh)",
-                _ => "Refresh Nimbu-Mirchi (Hang Fresh)",
+                NimbuStage.Wilting => $"Refresh Nimbu-Mirchi (Wilting \u2014 Dries in {remainingStr})",
+                _ => $"Refresh Nimbu-Mirchi (Fresh \u2014 Dries in {remainingStr})",
             };
             nimbuEntries.Add(new MenuEntry(nimbuTitle, RefreshNimbuMirchi));
             nimbuEntries.Add(MenuEntry.Separator);

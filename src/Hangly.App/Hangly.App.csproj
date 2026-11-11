@@ -66,7 +66,7 @@
     -->
     <HanglyGa4MeasurementId Condition="'$(HanglyGa4MeasurementId)' == ''"></HanglyGa4MeasurementId>
     <HanglyGa4ApiSecret Condition="'$(HanglyGa4ApiSecret)' == ''"></HanglyGa4ApiSecret>
-    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">6</HanglyBuildNumber>
+    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">7</HanglyBuildNumber>
     <!--
       The installation registry's URL. Never written here: the release workflow passes it
       from the HANGLY_REGISTRY_URL repository secret (-p:HanglyRegistryUrl=...). Empty, as

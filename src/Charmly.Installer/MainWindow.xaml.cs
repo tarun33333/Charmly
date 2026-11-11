@@ -363,7 +363,7 @@ holders.
                     if (uninstKey != null)
                     {
                         uninstKey.SetValue("DisplayName", "Charmly");
-                        uninstKey.SetValue("DisplayVersion", "0.9.0");
+                        uninstKey.SetValue("DisplayVersion", "0.9.1");
                         uninstKey.SetValue("Publisher", "Tarun");
                         uninstKey.SetValue("DisplayIcon", $"{exePath},0");
                         uninstKey.SetValue("InstallLocation", targetDir);

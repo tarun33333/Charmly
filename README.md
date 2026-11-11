@@ -8,10 +8,10 @@ Built and engineered for Windows on **.NET 9**, **WinUI 3**, **Win2D GPU Renderi
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20(x64)-informational?style=flat-square)](https://github.com/tarun33333/Charmly/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-[**⬇️ Download Charmly for Windows (v0.9.0)**](https://github.com/tarun33333/Charmly/releases)
+[**⬇️ Download Charmly for Windows (v0.9.1)**](https://github.com/tarun33333/Charmly/releases)
 
 - **`CharmlySetup.exe`** (Recommended standalone installer wizard with auto-startup)
-- **`Charmly-v0.9.0-Windows-x64.zip`** (Portable zero-install package)
+- **`Charmly-v0.9.1-Windows-x64.zip`** (Portable zero-install package)
 
 ---
 
@@ -26,7 +26,7 @@ Built and engineered for Windows on **.NET 9**, **WinUI 3**, **Win2D GPU Renderi
 6. Click **Finish & Launch**!
 
 ### Option 2: Portable ZIP
-1. Download **`Charmly-v0.9.0-Windows-x64.zip`** from [GitHub Releases](https://github.com/tarun33333/Charmly/releases/latest).
+1. Download **`Charmly-v0.9.1-Windows-x64.zip`** from [GitHub Releases](https://github.com/tarun33333/Charmly/releases/latest).
 2. Extract the archive to any folder on your PC.
 3. Double-click `Charmly.exe` to run.
 
@@ -44,14 +44,21 @@ Built and engineered for Windows on **.NET 9**, **WinUI 3**, **Win2D GPU Renderi
   - *Shinobi & Grand Voyage*: Orange Shinobi, Straw Hat Captain, Three-Sword Master.
   - *Retro Kicks*: Classic Court High-Tops and street sneaker classics.
   - *Colossal Titans, Galactic Watch, Pop Idols, & Classics*: Wings of Freedom, Chrono-Dial, Music Legends, Diamond, Camera, and more.
-- **🍋🌶️ Special Indian Charm: Nimbu-Mirchi Drying & Refresh Lifecycle**:
+- **🍋🌶️ Special Indian Charm: Customizable Nimbu-Mirchi Drying & Refresh Lifecycle**:
   - A traditional Indian protective amulet featuring a fresh lemon and 7 green chilies.
-  - **Dynamic 2-Day Lifecycle**:
-    - **Fresh (0–24 hrs)**: Vibrant bright green chilies and fresh sunny yellow lemon.
-    - **Wilting (24–48 hrs)**: Chilies turn olive and yellow-tinged, lemon dulls to ochre.
-    - **Dried (48+ hrs / 2 Days)**: Chilies turn into wrinkled deep red *Lal Mirch* and the lemon shrivels to amber-brown.
-  - **Refresh Feature**:
-    - Easily refresh and hang a fresh Nimbu-Mirchi anytime with 1 click from the System Tray or Customize Library.
+  - **User-Customizable Drying Lifespan (New in v0.9.1)**:
+    - Configure exactly how long your Nimbu-Mirchi takes to dry via a smooth slider (from **1 hour** up to **168 hours / 7 days**).
+    - One-click presets: `1h`, `12h`, `1 Day`, `2 Days` (default), `3 Days`, `1 Week`.
+  - **Dynamic Visual Stages**:
+    - **Fresh (0% – 50% lifespan)**: Vibrant bright green chilies and fresh sunny yellow lemon.
+    - **Wilting (50% – 100% lifespan)**: Chilies turn olive and yellow-tinged, lemon dulls to ochre.
+    - **Dried (100%+ lifespan)**: Chilies turn into wrinkled deep red *Lal Mirch* and the lemon shrivels to amber-brown.
+  - **1-Click Refresh**:
+    - Hang a fresh Nimbu-Mirchi anytime with 1 click from the System Tray or Customize Library.
+    - System Tray menu dynamically shows current status and remaining time (e.g. `Refresh Nimbu-Mirchi (Fresh — Dries in 42h)`).
+- **System Tray Controls & Quick Exit (New in v0.9.1)**:
+  - Clean tray context menu with direct **Exit Charmly** option to close the app completely anytime.
+  - Charmly appears cleanly named in Windows Task Manager.
 - **Up to 3 Charms on One Cord**:
   - Hang a single statement charm or stack up to three charms in sequence down the cord. Each charm adds physical mass, rotational inertia, and collision constraints.
 - **6 Physical Rope Styles**:

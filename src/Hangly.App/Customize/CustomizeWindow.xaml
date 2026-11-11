@@ -421,9 +421,60 @@
                                             Style="{StaticResource CaptionTextBlockStyle}"
                                             Text="{x:Bind Detail.NimbuStatus, Mode=OneWay}"
                                             TextWrapping="Wrap" />
+
+                                        <!-- Custom Drying Lifetime Controls -->
+                                        <TextBlock
+                                            x:Name="NimbuLifespanLabel"
+                                            Margin="0,4,0,0"
+                                            FontSize="12"
+                                            Opacity="0.85"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="Dries after: 48 hours (2.0 days)" />
+
+                                        <Slider
+                                            x:Name="NimbuLifespanSlider"
+                                            Minimum="1"
+                                            Maximum="168"
+                                            StepFrequency="1"
+                                            ValueChanged="OnNimbuLifespanSliderChanged" />
+
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <Button
+                                                Padding="6,3"
+                                                Click="OnNimbuPreset1hClicked"
+                                                Content="1h"
+                                                FontSize="11" />
+                                            <Button
+                                                Padding="6,3"
+                                                Click="OnNimbuPreset12hClicked"
+                                                Content="12h"
+                                                FontSize="11" />
+                                            <Button
+                                                Padding="6,3"
+                                                Click="OnNimbuPreset1dClicked"
+                                                Content="1 Day"
+                                                FontSize="11" />
+                                            <Button
+                                                Padding="6,3"
+                                                Click="OnNimbuPreset2dClicked"
+                                                Content="2 Days"
+                                                FontSize="11" />
+                                            <Button
+                                                Padding="6,3"
+                                                Click="OnNimbuPreset3dClicked"
+                                                Content="3 Days"
+                                                FontSize="11" />
+                                            <Button
+                                                Padding="6,3"
+                                                Click="OnNimbuPreset7dClicked"
+                                                Content="1 Week"
+                                                FontSize="11" />
+                                        </StackPanel>
+
                                         <Button
                                             x:Name="RefreshNimbuButton"
                                             HorizontalAlignment="Stretch"
+                                            Margin="0,4,0,0"
                                             Click="OnRefreshNimbuClicked"
                                             Content="Hang Fresh Nimbu-Mirchi"
                                             Style="{StaticResource AccentButtonStyle}" />

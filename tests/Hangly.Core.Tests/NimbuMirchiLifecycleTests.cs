@@ -91,4 +91,40 @@ public class NimbuMirchiLifecycleTests
         Assert.NotNull(hungSettings.NimbuMirchiHungAt);
         Assert.Equal(NimbuStage.Fresh, NimbuMirchiLifecycle.GetStage(hungSettings));
     }
+
+    [Fact]
+    public void CustomLifespanShortDurationTransitionsCorrectly()
+    {
+        // 2 hours total lifespan (1 hour wilting, 2 hours dried)
+        var settings = new AppSettings
+        {
+            NimbuMirchiLifespanHours = 2.0,
+            NimbuMirchiHungAt = DateTime.UtcNow.AddMinutes(-30), // 0.5h old -> Fresh
+        };
+        Assert.Equal(NimbuStage.Fresh, NimbuMirchiLifecycle.GetStage(settings));
+
+        var wilting = settings with { NimbuMirchiHungAt = DateTime.UtcNow.AddMinutes(-90) }; // 1.5h old -> Wilting
+        Assert.Equal(NimbuStage.Wilting, NimbuMirchiLifecycle.GetStage(wilting));
+
+        var dried = settings with { NimbuMirchiHungAt = DateTime.UtcNow.AddMinutes(-130) }; // 2.1h old -> Dried
+        Assert.Equal(NimbuStage.Dried, NimbuMirchiLifecycle.GetStage(dried));
+    }
+
+    [Fact]
+    public void CustomLifespanOneWeekDurationTransitionsCorrectly()
+    {
+        // 168 hours (7 days) lifespan (84 hours wilting, 168 hours dried)
+        var settings = new AppSettings
+        {
+            NimbuMirchiLifespanHours = 168.0,
+            NimbuMirchiHungAt = DateTime.UtcNow.AddHours(-40), // Day 2 -> Fresh (since lifespan is 7d)
+        };
+        Assert.Equal(NimbuStage.Fresh, NimbuMirchiLifecycle.GetStage(settings));
+
+        var wilting = settings with { NimbuMirchiHungAt = DateTime.UtcNow.AddHours(-100) }; // Day 4 -> Wilting
+        Assert.Equal(NimbuStage.Wilting, NimbuMirchiLifecycle.GetStage(wilting));
+
+        var dried = settings with { NimbuMirchiHungAt = DateTime.UtcNow.AddHours(-170) }; // Day 7+ -> Dried
+        Assert.Equal(NimbuStage.Dried, NimbuMirchiLifecycle.GetStage(dried));
+    }
 }
