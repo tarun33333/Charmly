@@ -1279,6 +1279,14 @@
                                 Opacity="0.8"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 TextWrapping="Wrap" />
+                            <ProgressBar
+                                x:Name="UpdateProgressBar"
+                                MaxWidth="560"
+                                HorizontalAlignment="Stretch"
+                                Margin="0,2,0,4"
+                                Minimum="0"
+                                Maximum="100"
+                                Visibility="Collapsed" />
                             <!-- What changed, straight from the release. It appears only
                                  when there is an update and the release said something,
                                  because an empty "What's new" box reads as a broken one. -->

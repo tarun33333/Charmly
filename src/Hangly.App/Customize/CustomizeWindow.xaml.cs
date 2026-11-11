@@ -1127,15 +1127,30 @@ public sealed partial class CustomizeWindow : Window
     private async void OnInstallUpdate(object sender, RoutedEventArgs args)
     {
         InstallUpdateButton.IsEnabled = false;
+        CheckUpdateButton.IsEnabled = false;
+        UpdateProgressBar.Visibility = Visibility.Visible;
+        UpdateProgressBar.Value = 0;
         UpdateMessage.Text = "Downloading…";
 
         // If this succeeds the process is replaced and nothing after it runs. If it
         // fails, the installed copy is untouched and the message says so. Progress arrives
         // from the download's thread, so it is handed to this window's own.
         Microsoft.UI.Dispatching.DispatcherQueue queue = DispatcherQueue;
-        UpdateMessage.Text = await updater.DownloadAndApplyAsync(status => queue.TryEnqueue(() => UpdateMessage.Text = status));
-        InstallUpdateButton.IsEnabled = true;
-        UpdateNotesPanel.Visibility = Visibility.Collapsed;
+        Action<int> onProgress = pct => queue.TryEnqueue(() => UpdateProgressBar.Value = pct);
+        updater.DownloadProgress += onProgress;
+
+        try
+        {
+            string result = await updater.DownloadAndApplyAsync(status => queue.TryEnqueue(() => UpdateMessage.Text = status));
+            UpdateMessage.Text = result;
+        }
+        finally
+        {
+            updater.DownloadProgress -= onProgress;
+            InstallUpdateButton.IsEnabled = true;
+            CheckUpdateButton.IsEnabled = true;
+            UpdateProgressBar.Visibility = Visibility.Collapsed;
+        }
     }
 
     // --- Create -------------------------------------------------------------------

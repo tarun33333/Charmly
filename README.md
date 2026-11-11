@@ -59,6 +59,11 @@ Built and engineered for Windows on **.NET 9**, **WinUI 3**, **Win2D GPU Renderi
 - **System Tray Controls & Quick Exit (New in v0.9.1)**:
   - Clean tray context menu with direct **Exit Charmly** option to close the app completely anytime.
   - Charmly appears cleanly named in Windows Task Manager.
+- **🔄 Native In-App Update Engine (New in v0.9.1)**:
+  - Check for updates directly inside the app with 1 click from the About page.
+  - Automatically queries GitHub Releases, displays release notes, and streams the update with an animated progress bar.
+  - Silent setup update engine seamlessly applies the update in the background and restarts Charmly without manual re-installation.
+  - Supports both installed and portable copies.
 - **Up to 3 Charms on One Cord**:
   - Hang a single statement charm or stack up to three charms in sequence down the cord. Each charm adds physical mass, rotational inertia, and collision constraints.
 - **6 Physical Rope Styles**:

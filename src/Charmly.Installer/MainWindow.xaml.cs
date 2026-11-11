@@ -227,155 +227,19 @@ holders.
         {
             try
             {
-                // Ensure target directory exists
-                Directory.CreateDirectory(targetDir);
-
-                // Stop any running Charmly instance before extracting
-                foreach (var proc in System.Diagnostics.Process.GetProcessesByName("Charmly").Concat(System.Diagnostics.Process.GetProcessesByName("Hangly")))
-                {
-                    try { proc.Kill(); proc.WaitForExit(2000); } catch { }
-                }
-
-                // Locate payload zip (either embedded resource or adjacent zip file)
-                Stream? zipStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Payload.zip");
-
-                if (zipStream == null)
-                {
-                    // Fallback to local files if testing during development
-                    string adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Charmly-v0.9.0-Windows-x64.zip");
-                    if (!File.Exists(adjacentZip))
+                InstallerEngine.Install(
+                    targetDir,
+                    enableStartup,
+                    createDesktopShortcut,
+                    createStartMenuShortcut,
+                    (pct, status) =>
                     {
-                        adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\publish\Charmly-v0.9.0-Windows-x64.zip");
-                    }
-                    if (File.Exists(adjacentZip))
-                    {
-                        zipStream = File.OpenRead(adjacentZip);
-                    }
-                }
-
-                if (zipStream == null)
-                {
-                    throw new FileNotFoundException("Could not find the application installation payload.");
-                }
-
-                using (zipStream)
-                using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Read))
-                {
-                    int total = archive.Entries.Count;
-                    int count = 0;
-
-                    foreach (var entry in archive.Entries)
-                    {
-                        count++;
-                        int pct = (int)((count / (float)total) * 90);
-
                         Dispatcher.Invoke(() =>
                         {
                             InstallProgress.Value = pct;
-                            InstallingStatus.Text = $"Extracting {entry.Name}...";
+                            InstallingStatus.Text = status;
                         });
-
-                        string destinationPath = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
-                        if (!destinationPath.StartsWith(Path.GetFullPath(targetDir), StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue; // Zip Slip protection
-                        }
-
-                        if (string.IsNullOrEmpty(entry.Name))
-                        {
-                            Directory.CreateDirectory(destinationPath);
-                        }
-                        else
-                        {
-                            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-                            entry.ExtractToFile(destinationPath, overwrite: true);
-                        }
-                    }
-                }
-
-                Dispatcher.Invoke(() =>
-                {
-                    InstallProgress.Value = 92;
-                    InstallingStatus.Text = "Creating shortcuts and registering uninstaller...";
-                });
-
-                string exePath = Path.Combine(targetDir, "Charmly.exe");
-                if (!File.Exists(exePath))
-                {
-                    exePath = Path.Combine(targetDir, "Hangly.exe");
-                }
-
-                // Copy this installer as uninstaller into the target directory
-                try
-                {
-                    string? currentExe = Environment.ProcessPath;
-                    string uninstallerPath = Path.Combine(targetDir, "Uninstall.exe");
-                    if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
-                    {
-                        File.Copy(currentExe, uninstallerPath, overwrite: true);
-                    }
-                }
-                catch { }
-
-                // Create Start Menu Shortcut
-                if (createStartMenuShortcut)
-                {
-                    try
-                    {
-                        string startMenuPrograms = Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.StartMenu),
-                            "Programs");
-                        Directory.CreateDirectory(startMenuPrograms);
-                        string startMenuLnk = Path.Combine(startMenuPrograms, "Charmly.lnk");
-                        ShortcutHelper.CreateShortcut(startMenuLnk, exePath, "Charmly by Tarun");
-                    }
-                    catch { }
-                }
-
-                // Create Desktop Shortcut
-                if (createDesktopShortcut)
-                {
-                    try
-                    {
-                        string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                        string desktopLnk = Path.Combine(desktopPath, "Charmly.lnk");
-                        ShortcutHelper.CreateShortcut(desktopLnk, exePath, "Charmly by Tarun");
-                    }
-                    catch { }
-                }
-
-                // Configure Windows Auto-Start / Launch at Login
-                if (enableStartup)
-                {
-                    try
-                    {
-                        using var runKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
-                        runKey?.SetValue("Charmly", $"\"{exePath}\" --login");
-                        runKey?.SetValue("Hangly", $"\"{exePath}\" --login");
-                    }
-                    catch { }
-                }
-
-                // Register Uninstaller in Windows Add/Remove Programs
-                try
-                {
-                    using var uninstKey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Charmly", writable: true);
-                    if (uninstKey != null)
-                    {
-                        uninstKey.SetValue("DisplayName", "Charmly");
-                        uninstKey.SetValue("DisplayVersion", "0.9.1");
-                        uninstKey.SetValue("Publisher", "Tarun");
-                        uninstKey.SetValue("DisplayIcon", $"{exePath},0");
-                        uninstKey.SetValue("InstallLocation", targetDir);
-                        uninstKey.SetValue("UninstallString", $"\"{Path.Combine(targetDir, "Uninstall.exe")}\" --uninstall");
-                        uninstKey.SetValue("QuietUninstallString", $"\"{Path.Combine(targetDir, "Uninstall.exe")}\" --uninstall --quiet");
-                        uninstKey.SetValue("URLInfoAbout", "https://itstarun.me");
-                        uninstKey.SetValue("HelpLink", "https://github.com/tarun33333/Charmly");
-                        uninstKey.SetValue("NoModify", 1, RegistryValueKind.DWord);
-                        uninstKey.SetValue("NoRepair", 1, RegistryValueKind.DWord);
-                    }
-                }
-                catch { }
+                    });
 
                 Dispatcher.Invoke(() =>
                 {
@@ -389,11 +253,13 @@ holders.
                 Dispatcher.Invoke(() =>
                 {
                     MessageBox.Show(
-                        $"An error occurred during installation:\n{ex.Message}",
-                        "Installation Failed",
+                        $"An error occurred during installation:\n\n{ex.Message}",
+                        "Installation Error",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
-                    Close();
+
+                    currentStep = 2;
+                    UpdateStepView();
                 });
             }
         });

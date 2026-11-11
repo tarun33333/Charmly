@@ -1,89 +1,72 @@
 //
 //  Updater.cs
-//  Hangly
+//  Charmly
 //
-//  Checking whether there is a newer Hangly, and becoming it.
+//  Native in-app update check and background updater using GitHub Releases.
 //
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 using Hangly.Core.Analytics;
-using Velopack;
-using Velopack.Sources;
 
 namespace Hangly.App.Services;
 
-/// <summary>What a check found.</summary>
+/// <summary>What an update check found.</summary>
 /// <param name="Version">The version available, or null when there is none.</param>
-/// <param name="Message">What to tell the person.</param>
+/// <param name="Message">What to tell the user.</param>
+/// <param name="Notes">Markdown release notes.</param>
 public readonly record struct UpdateCheck(string? Version, string Message, string? Notes = null)
 {
     public bool HasUpdate => Version is not null;
-
-    /// <summary>Whether there is anything to read about this release.</summary>
     public bool HasNotes => !string.IsNullOrWhiteSpace(Notes);
 }
 
-/// <summary>Finds updates, fetches them, and hands over to Velopack to apply.</summary>
-/// <remarks>
-/// <b>What this is not.</b> It does not move files, replace the executable or restart
-/// anything itself. Velopack's own hook — run before everything else in
-/// <see cref="Program"/> — does all of that in a separate process launch. This only asks
-/// what exists, downloads it, and says "now".
-///
-/// <para><b>One channel per architecture.</b> An ARM64 machine must never be offered an
-/// x64 package, and a channel is a single line of releases, so the channel name carries
-/// the runtime identifier. The feed for this build is therefore
-/// <c>releases.win-arm64.json</c> or <c>releases.win-x64.json</c>, chosen here rather
-/// than by whatever the server happens to serve.</para>
-///
-/// <para><b>Nothing is sent.</b> A check is a GET for a static file. There is no server
-/// component and no identifier — the same promise the macOS build's appcast makes, and
-/// the reason PRIVACY.md can say an update check carries nothing.</para>
-///
-/// <para><b>Silent.</b> A found update is downloaded in the background and installed while
-/// the person is away — locked, or a screen saver up (<see cref="Core.Lifecycle.UpdateTiming"/>)
-/// — or as Hangly quits, or the next time it starts, whichever comes first. Nothing asks
-/// and nothing is shown while it happens; the new version greets them with its release
-/// notes when they return. The About page and the tray can still install one at once.</para>
-///
-/// <para><b>Every failure is quiet.</b> A machine with no network, a feed that has not
-/// been published yet, and a release that will not parse are all the same answer: there
-/// is no update today. None of them is worth interrupting someone over, and none of them
-/// may take the app down — an update is the one feature whose failure must never cost
-/// you the thing you already have.</para>
-/// </remarks>
+/// <summary>Finds updates from GitHub Releases, downloads them with progress, and updates Charmly.</summary>
 public sealed class Updater
 {
-    /// <summary>The channel this build belongs to: one per architecture.</summary>
     public static string Channel =>
-        System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
-            == System.Runtime.InteropServices.Architecture.Arm64
+        RuntimeInformation.ProcessArchitecture == Architecture.Arm64
             ? "win-arm64"
             : "win-x64";
 
     private readonly string feedUrl;
-    private UpdateInfo? pending;
-    private UpdateInfo? downloaded;
+    private string? pendingVersion;
+    private string? pendingNotes;
+    private string? pendingAssetUrl;
+    private string? pendingAssetName;
 
-    /// <summary>The background download while it runs, so Install can wait for it rather than race it.</summary>
+    private string? downloadedVersion;
+    private string? downloadedNotes;
+    private string? downloadedFilePath;
+
     private Task<bool>? downloading;
-
-    // The update funnel (AnalyticsEvent.UpdateAvailable …): who asked for this update, and which version was
-    // already reported available this run, so a daily check that finds the same one again adds nothing.
     private UpdateTrigger trigger = UpdateTrigger.Quiet;
     private string? reportedAvailable;
 
     private static void Report(AnalyticsEvent analyticsEvent) => HanglyAnalytics.Log(analyticsEvent);
 
-    /// <summary>The version downloaded and waiting for Hangly to restart, if any.</summary>
-    public string? ReadyVersion => downloaded?.TargetFullRelease.Version.ToString();
+    /// <summary>The version downloaded and waiting for Charmly to restart, if any.</summary>
+    public string? ReadyVersion => downloadedVersion;
 
     /// <summary>The version the last check found, downloaded or not.</summary>
-    public string? AvailableVersion => (pending ?? downloaded)?.TargetFullRelease.Version.ToString();
+    public string? AvailableVersion => pendingVersion ?? downloadedVersion;
 
-    /// <summary>The found release's notes, Markdown, for the update card's bullet points.</summary>
-    public string? AvailableNotes => (pending ?? downloaded)?.TargetFullRelease.NotesMarkdown;
+    /// <summary>The found release's notes (Markdown) for display.</summary>
+    public string? AvailableNotes => pendingNotes ?? downloadedNotes;
 
-    /// <summary>Percent downloaded, raised on a thread-pool thread while any download runs.</summary>
+    /// <summary>Last reported download progress percent (0 - 100).</summary>
+    public int LastDownloadPercent { get; private set; } = -1;
+
+    /// <summary>Percent downloaded, raised while any download runs.</summary>
     public event Action<int>? DownloadProgress;
 
     /// <summary>Raised when a check finds something new, or a download completes or fails.</summary>
@@ -91,129 +74,140 @@ public sealed class Updater
 
     public Updater(string feedUrl) => this.feedUrl = feedUrl;
 
-    /// <summary>The manager this build asks, pointed at its own channel.</summary>
-    /// <remarks>
-    /// <b>A GitHub source, not a plain web one.</b> Handing the repository URL to
-    /// <see cref="UpdateManager"/> as a string makes a <c>SimpleWebSource</c>, which would
-    /// fetch <c>https://github.com/owner/repo/releases.win-arm64.json</c> — a page that
-    /// does not exist. Release assets live under a tag, so finding them means asking the
-    /// Releases API, which is what <see cref="GithubSource"/> does. The distinction costs
-    /// nothing to get right here and is invisible until the day a release is published
-    /// and nobody is offered it.
-    ///
-    /// <para>No access token: unauthenticated requests are enough for a public repository,
-    /// and a token in a shipped binary is a token that has been given away.</para>
-    ///
-    /// <para><b>Pre-releases are included, and that is not the obvious choice.</b> With
-    /// them excluded, <see cref="GithubSource"/> asks GitHub for
-    /// <c>/releases/latest</c> — an endpoint that <em>omits pre-releases entirely</em> and
-    /// answers <b>404</b> when every release is one. Velopack turns that into an
-    /// exception, so the check does not report "up to date"; it fails. Measured the
-    /// moment v0.9.0 went out as a pre-release: <c>update check failed:
-    /// HttpRequestException</c>, on every launch, for every tester, for as long as the
-    /// beta is the newest thing published.</para>
-    ///
-    /// <para>Including them makes the source enumerate <c>/releases</c> instead, which
-    /// lists everything, and Velopack then picks the highest version — so a stable v1.0
-    /// still wins over any 0.9.x beta. <b>The cost is real and belongs to the future:</b>
-    /// once people are running a stable release, publishing a pre-release will offer it to
-    /// them. Either stop publishing pre-releases at that point, or set this back to false
-    /// — see <c>Docs/Release/DISTRIBUTION.md</c> §2.</para>
-    /// </remarks>
-    private UpdateManager Manager() => new(
-        Directory.Exists(feedUrl)
-            ? new SimpleFileSource(new DirectoryInfo(feedUrl))
-            : new GithubSource(feedUrl, accessToken: null, prerelease: true),
-        new UpdateOptions { ExplicitChannel = Channel });
-
-    /// <summary>Whether this copy can update itself at all.</summary>
-    /// <remarks>
-    /// False for a copy that was unzipped rather than installed, and for every run from
-    /// a build directory. Velopack has nothing to replace in those cases, and offering
-    /// an update that cannot be applied is worse than offering none.
-    /// </remarks>
+    /// <summary>Whether this copy was installed into the standard user programs directory.</summary>
     public static bool IsInstalled
     {
         get
         {
             try
             {
-                return new UpdateManager(new GithubSource("https://github.com", null, false)).IsInstalled;
+                string? exe = Environment.ProcessPath;
+                if (string.IsNullOrEmpty(exe)) return false;
+                string standardDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Programs",
+                    "Charmly");
+                return exe.StartsWith(standardDir, StringComparison.OrdinalIgnoreCase);
             }
-            catch (Exception)
+            catch
             {
                 return false;
             }
         }
     }
 
-    /// <summary>Asks the feed what exists. Never throws.</summary>
+    /// <summary>Asks GitHub Releases what exists. Never throws.</summary>
     public async Task<UpdateCheck> CheckAsync(UpdateTrigger trigger = UpdateTrigger.Quiet)
     {
         this.trigger = trigger;
         try
         {
-            UpdateManager manager = Manager();
-            if (!manager.IsInstalled)
+            Diagnostics.Log($"Checking for updates via {feedUrl}...");
+
+            List<GitHubReleaseItem> releases;
+
+            // Check if local folder feed is configured
+            if (Directory.Exists(feedUrl))
             {
-                return new UpdateCheck(null, "Updates apply to installed copies only.");
+                releases = CheckLocalFeed(feedUrl);
+            }
+            else
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+                http.DefaultRequestHeaders.UserAgent.ParseAdd($"Charmly/{AppInfo.Version} (Windows; x64)");
+
+                var fetched = await http.GetFromJsonAsync<List<GitHubReleaseItem>>(feedUrl).ConfigureAwait(false);
+                releases = fetched ?? new List<GitHubReleaseItem>();
             }
 
-            pending = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
-            if (pending is null)
+            if (releases.Count == 0)
             {
-                return new UpdateCheck(null, "Hangly is up to date.");
+                return new UpdateCheck(null, "Charmly is up to date.");
             }
 
-            string version = pending.TargetFullRelease.Version.ToString();
-            if (reportedAvailable != version)
+            // Find the newest eligible release
+            TryParseVersion(AppInfo.Version, out Version currentVersion);
+
+            GitHubReleaseItem? newestRelease = null;
+            Version? highestVersion = null;
+
+            foreach (var release in releases)
             {
-                reportedAvailable = version;
-                Report(AnalyticsEvent.UpdateAvailable(version, trigger));
+                if (release.Draft) continue;
+                if (!TryParseVersion(release.TagName, out Version releaseVer)) continue;
+
+                if (releaseVer > currentVersion && (highestVersion == null || releaseVer > highestVersion))
+                {
+                    highestVersion = releaseVer;
+                    newestRelease = release;
+                }
+            }
+
+            if (newestRelease == null || highestVersion == null)
+            {
+                return new UpdateCheck(null, "Charmly is up to date.");
+            }
+
+            string verString = newestRelease.TagName?.TrimStart('v', 'V') ?? highestVersion.ToString(3);
+            pendingVersion = verString;
+            pendingNotes = newestRelease.Body;
+
+            // Select the best asset for this install mode
+            SelectAsset(newestRelease);
+
+            if (reportedAvailable != verString)
+            {
+                reportedAvailable = verString;
+                Report(AnalyticsEvent.UpdateAvailable(verString, trigger));
             }
 
             StateChanged?.Invoke();
-
-            // Whatever the release was packaged with, if anything. A release with no
-            // notes is ordinary rather than an error, and shows the version alone.
-            string? notes = pending.TargetFullRelease.NotesMarkdown;
-            return new UpdateCheck(version, $"Hangly {version} is available.", notes);
+            return new UpdateCheck(verString, $"Charmly v{verString} is available.", pendingNotes);
         }
-        catch (Exception exception)
+        catch (Exception ex)
         {
-            Diagnostics.Log($"update check failed: {exception.GetType().Name}");
-            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Check, exception.GetType().Name, trigger));
+            Diagnostics.Log($"Update check failed: {ex.Message}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Check, ex.GetType().Name, trigger));
             return new UpdateCheck(null, "Couldn't check for updates just now.");
         }
     }
 
-    /// <summary>Release notes as plain text, ready for a text box.</summary>
-    /// <remarks>
-    /// The work is <see cref="Hangly.Core.Text.ReleaseNotes"/>'s, where it can be tested;
-    /// this is here so the About page has one place to call and does not have to know
-    /// that notes arrive as Markdown.
-    /// </remarks>
+    private void SelectAsset(GitHubReleaseItem release)
+    {
+        if (release.Assets == null || release.Assets.Count == 0) return;
+
+        bool preferInstaller = IsInstalled;
+
+        GitHubReleaseAsset? chosen = null;
+
+        if (preferInstaller)
+        {
+            // Prefer CharmlySetup.exe or any .exe asset
+            chosen = release.Assets.FirstOrDefault(a => a.Name?.EndsWith("Setup.exe", StringComparison.OrdinalIgnoreCase) == true)
+                  ?? release.Assets.FirstOrDefault(a => a.Name?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true)
+                  ?? release.Assets.FirstOrDefault(a => a.Name?.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) == true);
+        }
+        else
+        {
+            // Prefer zip package for portable setups
+            chosen = release.Assets.FirstOrDefault(a => a.Name?.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) == true)
+                  ?? release.Assets.FirstOrDefault(a => a.Name?.EndsWith("Setup.exe", StringComparison.OrdinalIgnoreCase) == true)
+                  ?? release.Assets.FirstOrDefault(a => a.Name?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
+        }
+
+        if (chosen != null)
+        {
+            pendingAssetUrl = chosen.BrowserDownloadUrl;
+            pendingAssetName = chosen.Name;
+        }
+    }
+
+    /// <summary>Release notes formatted as plain text.</summary>
     public static string PlainNotes(string markdown) => Hangly.Core.Text.ReleaseNotes.Plain(markdown);
 
-    /// <summary>
-    /// Downloads what the last check found and applies it, which ends this process.
-    /// </summary>
-    /// <remarks>
-    /// The restart is Velopack's: it relaunches the app after the files are in place.
-    /// Anything that fails before that point leaves the installed copy exactly as it was,
-    /// because nothing is replaced until the whole package has arrived.
-    /// </remarks>
-    /// <summary>
-    /// Downloads what the last check found, for Velopack to apply on the next start.
-    /// Never throws.
-    /// </summary>
-    /// <returns>Whether an update is now downloaded and waiting.</returns>
+    /// <summary>Downloads what the last check found. Never throws.</summary>
     public Task<bool> DownloadAsync()
     {
-        // One download at a time. Velopack holds an exclusive lock while it downloads, and a
-        // second download — Install pressed while the quiet one was still fetching 300 MB —
-        // failed on that lock and told the person the update could not be installed.
-        // A failed one is not kept: tomorrow's check tries again.
         if (downloading is null || (downloading.IsCompleted && !downloading.Result))
         {
             downloading = DownloadOnceAsync();
@@ -224,234 +218,290 @@ public sealed class Updater
 
     private async Task<bool> DownloadOnceAsync()
     {
-        if (pending is null)
+        if (string.IsNullOrEmpty(pendingAssetUrl))
         {
-            return downloaded is not null;
+            return downloadedFilePath is not null;
         }
 
         try
         {
-            UpdateInfo found = pending;
-            string version = found.TargetFullRelease.Version.ToString();
+            string version = pendingVersion ?? "unknown";
             Report(AnalyticsEvent.UpdateDownloadStarted(version, trigger));
-            await WithLockRetriesAsync(() => Manager().DownloadUpdatesAsync(found, percent => DownloadProgress?.Invoke(percent))).ConfigureAwait(false);
-            downloaded = found;
+
+            string tempDir = Path.Combine(Path.GetTempPath(), "CharmlyUpdate");
+            Directory.CreateDirectory(tempDir);
+
+            string fileName = pendingAssetName ?? $"CharmlyUpdate-{version}.exe";
+            string targetPath = Path.Combine(tempDir, fileName);
+
+            using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) })
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd($"Charmly/{AppInfo.Version}");
+                using var response = await http.GetAsync(pendingAssetUrl, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                long? totalBytes = response.Content.Headers.ContentLength;
+
+                await using var remoteStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                await using var localFile = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+
+                byte[] buffer = new byte[81920];
+                long totalRead = 0;
+                int bytesRead;
+
+                while ((bytesRead = await remoteStream.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+                {
+                    await localFile.WriteAsync(buffer.AsMemory(0, bytesRead)).ConfigureAwait(false);
+                    totalRead += bytesRead;
+
+                    if (totalBytes.HasValue && totalBytes.Value > 0)
+                    {
+                        int pct = (int)((totalRead * 100) / totalBytes.Value);
+                        if (pct != LastDownloadPercent)
+                        {
+                            LastDownloadPercent = pct;
+                            DownloadProgress?.Invoke(pct);
+                        }
+                    }
+                }
+            }
+
+            downloadedFilePath = targetPath;
+            downloadedVersion = pendingVersion;
+            downloadedNotes = pendingNotes;
+
             Report(AnalyticsEvent.UpdateDownloadCompleted(version, trigger));
-            Diagnostics.Log($"update {found.TargetFullRelease.Version} downloaded; applies on the next start");
+            Diagnostics.Log($"Update {version} downloaded to {targetPath}");
             StateChanged?.Invoke();
             return true;
         }
-        catch (Exception exception)
+        catch (Exception ex)
         {
-            Diagnostics.Log($"update download failed: {exception.GetType().Name}");
-            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Download, exception.GetType().Name, trigger));
+            Diagnostics.Log($"Update download failed: {ex.Message}");
+            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Download, ex.GetType().Name, trigger));
             StateChanged?.Invoke();
             return false;
         }
     }
 
-    /// <summary>Hands a downloaded update to Velopack to apply once this process ends.</summary>
-    /// <remarks>
-    /// Called on the way out of a normal quit, so an update is not left waiting for the next
-    /// start. Silent and without a restart: somebody who chose Quit wanted Hangly gone.
-    /// Velopack's updater waits up to a minute for this process to exit, which a quit does
-    /// at once. If it does not — Windows shutting down around it — the package is still
-    /// there, and the next start applies it instead.
-    /// </remarks>
+    /// <summary>Hands a downloaded update to be applied when the app exits.</summary>
     public void ApplyOnExit()
     {
-        if (downloaded is null)
-        {
-            return;
-        }
-
-        try
-        {
-            Manager().WaitExitThenApplyUpdates(downloaded.TargetFullRelease, silent: true, restart: false);
-            Diagnostics.Log($"update {downloaded.TargetFullRelease.Version} will apply as Hangly exits");
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Log($"update apply-on-exit failed: {exception.GetType().Name}");
-            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
-        }
+        if (downloadedFilePath == null) return;
+        ApplyDownloadedUpdate(downloadedFilePath, silent: true, restart: false);
     }
 
-    /// <summary>
-    /// Installs the downloaded update as this process exits and starts the new version quietly. Never throws.
-    /// </summary>
-    /// <remarks>
-    /// For the moment nobody is looking (<see cref="Core.Lifecycle.UpdateTiming"/>): silent, so Velopack shows no
-    /// progress window, and restarted with <see cref="Core.Lifecycle.LaunchIntent.UpdatedArgument"/>, so the new
-    /// version opens only its release notes. The caller exits straight after.
-    /// </remarks>
-    /// <returns>Whether the update is handed over; false leaves it for the next Quit or start.</returns>
+    /// <summary>Installs the update quietly and restarts Charmly.</summary>
     public bool ApplyQuietlyAndRestart()
     {
-        if (downloaded is null)
-        {
-            return false;
-        }
-
-        try
-        {
-            Manager().WaitExitThenApplyUpdates(
-                downloaded.TargetFullRelease, silent: true, restart: true, restartArgs: [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
-            Diagnostics.Log($"update {downloaded.TargetFullRelease.Version} installing quietly; Hangly restarts on it");
-            return true;
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Log($"quiet update install failed: {exception.GetType().Name}");
-            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
-            return false;
-        }
+        if (downloadedFilePath == null) return false;
+        return ApplyDownloadedUpdate(downloadedFilePath, silent: true, restart: true);
     }
 
-    /// <summary>
-    /// The update card's Update in Background: downloads if it has not been already, then installs as this process exits
-    /// and starts the new version — silently, no progress window, and the new version opens nothing
-    /// (<see cref="Core.Lifecycle.LaunchIntent.SilentlyArgument"/>). True when it is handed over: the caller exits.
-    /// </summary>
+    /// <summary>Performs update in background.</summary>
     public async Task<bool> UpdateInBackgroundAsync()
     {
-        if (pending is null && downloaded is null)
-        {
-            return false;
-        }
+        if (pendingVersion == null && downloadedFilePath == null) return false;
 
         trigger = UpdateTrigger.Manual;
-        if (downloaded is null && !await DownloadAsync().ConfigureAwait(false))
+        if (downloadedFilePath == null && !await DownloadAsync().ConfigureAwait(false))
         {
             return false;
         }
 
-        try
-        {
-            Manager().WaitExitThenApplyUpdates(
-                downloaded!.TargetFullRelease,
-                silent: true,
-                restart: true,
-                restartArgs: [Core.Lifecycle.LaunchIntent.UpdatedArgument, Core.Lifecycle.LaunchIntent.SilentlyArgument]);
-            Diagnostics.Log($"update in background: {downloaded.TargetFullRelease.Version} installs as Hangly restarts");
-            return true;
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Failure("update in background", exception);
-            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
-            return false;
-        }
+        return ApplyQuietlyAndRestart();
     }
 
-    /// <summary>
-    /// The update card's Update Now: downloads with progress if it has not been already, then applies and restarts.
-    /// Returns only if it failed — success ends this process. Never throws.
-    /// </summary>
-    /// <param name="downloading">Told the percent as the download goes.</param>
-    /// <param name="installing">Told when the download is done and the install begins.</param>
-    /// <param name="cancel">The card was closed: the download carries on for the quiet install, but nothing restarts now.</param>
+    /// <summary>Updates now with progress callback, then installs and restarts.</summary>
     public async Task<bool> UpdateNowAsync(Action<int> downloading, Action installing, CancellationToken cancel = default)
     {
-        if (pending is null && downloaded is null)
-        {
-            return false;
-        }
+        if (pendingVersion == null && downloadedFilePath == null) return false;
 
         trigger = UpdateTrigger.Manual;
-        void Progress(int percent) => downloading(percent);
-        DownloadProgress += Progress;
+        void OnProgress(int pct) => downloading(pct);
+        DownloadProgress += OnProgress;
+
         try
         {
-            // The quiet download already running is joined, not raced: one lock, one download.
-            if (downloaded is null && !await DownloadAsync().ConfigureAwait(false))
+            if (downloadedFilePath == null && !await DownloadAsync().ConfigureAwait(false))
             {
                 return false;
             }
         }
         finally
         {
-            DownloadProgress -= Progress;
+            DownloadProgress -= OnProgress;
         }
 
-        if (cancel.IsCancellationRequested)
-        {
-            Diagnostics.Log("update now: card closed; the update installs quietly later");
-            return false;
-        }
+        if (cancel.IsCancellationRequested) return false;
 
         installing();
+        await Task.Delay(1000).ConfigureAwait(false);
 
-        // Long enough to read "Installing…" and then "Restarting Hangly…"; the package is already verified.
-        await Task.Delay(1500).ConfigureAwait(false);
-        if (cancel.IsCancellationRequested)
-        {
-            return false;
-        }
+        if (cancel.IsCancellationRequested) return false;
 
-        try
-        {
-            Diagnostics.Log($"update now: applying {downloaded!.TargetFullRelease.Version}");
-            Manager().ApplyUpdatesAndRestart(downloaded, [Core.Lifecycle.LaunchIntent.UpdatedArgument]);
-            return true;
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Failure("update now", exception);
-            Report(AnalyticsEvent.UpdateFailed(UpdateStage.Install, exception.GetType().Name, trigger));
-            return false;
-        }
+        return ApplyQuietlyAndRestart();
     }
 
-    /// <summary>
-    /// The About page's Install and restart, and the tray's Restart to update: the same path as the update card's
-    /// Update Now. Returns only if it failed — success ends this process.
-    /// </summary>
-    /// <remarks>
-    /// <b>Why it no longer downloads for itself.</b> It used to call Velopack's download directly, and Velopack holds an
-    /// exclusive lock while it downloads. Pressed while the quiet background download of the same update was still
-    /// fetching — a full package is 320 MB, so for minutes after a release — it failed on that lock at once, and said
-    /// "That update couldn't be installed". The registry had 296 such reports from 95 installs on 2.1.0–2.1.2. Now it
-    /// joins the download already running (<see cref="DownloadAsync"/>), shows its progress, and a lock held by anything
-    /// else is waited for (<see cref="WithLockRetriesAsync"/>) rather than reported as a failure.
-    /// </remarks>
-    /// <param name="status">Told what is happening, for the page to show: "Downloading 42%…", "Installing…".</param>
+    /// <summary>The About page's Install and restart handler.</summary>
     public async Task<string> DownloadAndApplyAsync(Action<string>? status = null)
     {
-        if (pending is null && downloaded is null)
+        if (pendingVersion == null && downloadedFilePath == null)
         {
             return "There's nothing to install.";
         }
 
-        bool started = await UpdateNowAsync(
-            percent => status?.Invoke($"Downloading {percent}%…"),
-            () => status?.Invoke("Installing…")).ConfigureAwait(false);
-        return started
-            ? "Restarting…"
-            : "That update couldn't be installed just now. Your copy is unchanged, and Hangly will install it on its own.";
-    }
+        status?.Invoke("Connecting to download server…");
 
-    /// <summary>How long, in all, a lock held by another Velopack operation is waited for: about a minute and a half.</summary>
-    private static readonly TimeSpan[] LockWaits = [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(24), TimeSpan.FromSeconds(45)];
+        void OnProgress(int pct) => status?.Invoke($"Downloading update ({pct}%)…");
+        DownloadProgress += OnProgress;
 
-    /// <summary>
-    /// Runs a Velopack operation, waiting and trying again while another operation holds its lock — another download,
-    /// or an Update.exe from an earlier session still finishing — instead of failing at the first refusal.
-    /// </summary>
-    private static async Task WithLockRetriesAsync(Func<Task> operation)
-    {
-        for (int attempt = 0; ; attempt++)
+        try
         {
-            try
+            if (downloadedFilePath == null)
             {
-                await operation().ConfigureAwait(false);
-                return;
-            }
-            catch (Velopack.Exceptions.AcquireLockFailedException) when (attempt < LockWaits.Length)
-            {
-                Diagnostics.Log($"update lock held by another operation; trying again in {LockWaits[attempt].TotalSeconds:0} s");
-                await Task.Delay(LockWaits[attempt]).ConfigureAwait(false);
+                bool ok = await DownloadAsync().ConfigureAwait(false);
+                if (!ok)
+                {
+                    return "That update couldn't be downloaded just now. Please try again later.";
+                }
             }
         }
+        finally
+        {
+            DownloadProgress -= OnProgress;
+        }
+
+        status?.Invoke("Installing update & restarting Charmly…");
+        await Task.Delay(1000).ConfigureAwait(false);
+
+        bool launched = ApplyDownloadedUpdate(downloadedFilePath!, silent: true, restart: true);
+        if (launched)
+        {
+            // Give installer a second to spin up before current process exits
+            _ = Task.Delay(1000).ContinueWith(_ => Environment.Exit(0));
+            return "Restarting Charmly…";
+        }
+
+        return "Could not launch the update installer.";
     }
+
+    private static bool ApplyDownloadedUpdate(string filePath, bool silent, bool restart)
+    {
+        try
+        {
+            string ext = Path.GetExtension(filePath).ToLowerInvariant();
+            string currentDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
+            string currentExe = Environment.ProcessPath ?? Path.Combine(currentDir, "Charmly.exe");
+
+            if (ext == ".exe")
+            {
+                string args = silent
+                    ? (restart ? "/SILENT /RESTART" : "/SILENT")
+                    : (restart ? "/RESTART" : "");
+
+                Diagnostics.Log($"Launching update installer: {filePath} {args}");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = filePath,
+                    Arguments = args,
+                    UseShellExecute = true
+                });
+                return true;
+            }
+            else if (ext == ".zip")
+            {
+                Diagnostics.Log($"Applying portable zip update: {filePath}");
+                string restartCmd = restart ? $"Start-Process '{currentExe}'" : "";
+                string psCommand = $"Start-Sleep -Seconds 2; Expand-Archive -Path '{filePath}' -DestinationPath '{currentDir}' -Force; Remove-Item '{filePath}' -Force; {restartCmd}";
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{psCommand}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Diagnostics.Log($"Failed to apply update: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool TryParseVersion(string? raw, out Version version)
+    {
+        version = new Version(0, 0, 0);
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+
+        string cleaned = raw.Trim().TrimStart('v', 'V').Split('-', '+')[0];
+        string[] parts = cleaned.Split('.');
+        if (parts.Length == 1) cleaned += ".0.0";
+        else if (parts.Length == 2) cleaned += ".0";
+
+        return Version.TryParse(cleaned, out version!);
+    }
+
+    private static List<GitHubReleaseItem> CheckLocalFeed(string localDir)
+    {
+        var list = new List<GitHubReleaseItem>();
+        try
+        {
+            foreach (var zip in Directory.GetFiles(localDir, "Charmly-v*.zip"))
+            {
+                string fn = Path.GetFileNameWithoutExtension(zip);
+                string ver = fn.Replace("Charmly-", "").Replace("-Windows-x64", "");
+                list.Add(new GitHubReleaseItem
+                {
+                    TagName = ver,
+                    Name = $"Charmly {ver}",
+                    Body = "Local update package",
+                    Assets = new List<GitHubReleaseAsset>
+                    {
+                        new() { Name = Path.GetFileName(zip), BrowserDownloadUrl = zip }
+                    }
+                });
+            }
+        }
+        catch { }
+        return list;
+    }
+}
+
+internal sealed class GitHubReleaseItem
+{
+    [JsonPropertyName("tag_name")]
+    public string? TagName { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("body")]
+    public string? Body { get; set; }
+
+    [JsonPropertyName("prerelease")]
+    public bool Prerelease { get; set; }
+
+    [JsonPropertyName("draft")]
+    public bool Draft { get; set; }
+
+    [JsonPropertyName("assets")]
+    public List<GitHubReleaseAsset>? Assets { get; set; }
+}
+
+internal sealed class GitHubReleaseAsset
+{
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("browser_download_url")]
+    public string? BrowserDownloadUrl { get; set; }
+
+    [JsonPropertyName("size")]
+    public long Size { get; set; }
 }

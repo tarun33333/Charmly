@@ -70,10 +70,14 @@ public static class AppInfo
     /// <summary>The four things the creator makes, in the order macOS lists them.</summary>
     public static string CreatorDisciplines => "Photography • Film • Design • Code";
 
-    public static string GitHubUrl => "https://github.com/tarun33333";
+    public static string GitHubUrl => "https://github.com/tarun33333/Charmly";
+
+    public static string GitHubRepo => "tarun33333/Charmly";
+
+    public static string GitHubApiReleasesUrl => $"https://api.github.com/repos/{GitHubRepo}/releases";
 
     /// <summary>Where the update feed lives.</summary>
-    public static string UpdateFeedUrl => LocalUpdateFeed ?? GitHubUrl;
+    public static string UpdateFeedUrl => LocalUpdateFeed ?? GitHubApiReleasesUrl;
 
     /// <summary>A folder of packages this build updates from, if it was built with one.</summary>
     public static string? LocalUpdateFeed { get; } =
