@@ -8,10 +8,10 @@ Built and engineered for Windows on **.NET 9**, **WinUI 3**, **Win2D GPU Renderi
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20(x64)-informational?style=flat-square)](https://github.com/tarun33333/Charmly/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-[**⬇️ Download Charmly for Windows (v0.9.1)**](https://github.com/tarun33333/Charmly/releases)
+[**⬇️ Download Charmly for Windows (v0.9.2)**](https://github.com/tarun33333/Charmly/releases)
 
 - **`CharmlySetup.exe`** (Recommended standalone installer wizard with auto-startup)
-- **`Charmly-v0.9.1-Windows-x64.zip`** (Portable zero-install package)
+- **`Charmly-v0.9.2-Windows-x64.zip`** (Portable zero-install package)
 
 ---
 
@@ -26,7 +26,7 @@ Built and engineered for Windows on **.NET 9**, **WinUI 3**, **Win2D GPU Renderi
 6. Click **Finish & Launch**!
 
 ### Option 2: Portable ZIP
-1. Download **`Charmly-v0.9.1-Windows-x64.zip`** from [GitHub Releases](https://github.com/tarun33333/Charmly/releases/latest).
+1. Download **`Charmly-v0.9.2-Windows-x64.zip`** from [GitHub Releases](https://github.com/tarun33333/Charmly/releases/latest).
 2. Extract the archive to any folder on your PC.
 3. Double-click `Charmly.exe` to run.
 
