@@ -196,7 +196,7 @@ public static class Diagnostics
         {
             var store = new Core.Registry.InstallationStore();
             Core.Registry.InstallationRecord? record = store.LoadExisting();
-            Log($"registry check: {(AppInfo.RegistryUrl.Length > 0 ? $"registry {AppInfo.RegistryUrl}" : "no registry URL in this build, so nothing is sent")}");
+            Log("registry check: no registry configured in Charmly (offline & private build)");
             if (record is null)
             {
                 Log($"registry check: no installation yet ({store.FilePath})");

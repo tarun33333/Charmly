@@ -11,6 +11,6 @@
     <Product>Charmly</Product>
     <!-- The floor for everything in the solution. The app overrides it, and the release
          build overrides that with the tag. -->
-    <Version>0.9.2</Version>
+    <Version>0.9.3</Version>
   </PropertyGroup>
 </Project>

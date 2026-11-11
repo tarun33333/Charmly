@@ -13,12 +13,12 @@
     <Company>Tarun</Company>
     <Authors>Tarun</Authors>
     <Copyright>Copyright © 2026 Tarun</Copyright>
-    <Version>0.9.2</Version>
+    <Version>0.9.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\icon.ico" />
-    <EmbeddedResource Include="../../publish/Charmly-v0.9.2-Windows-x64.zip" LogicalName="Payload.zip" Condition="Exists('../../publish/Charmly-v0.9.2-Windows-x64.zip')" />
+    <EmbeddedResource Include="../../publish/Charmly-v0.9.3-Windows-x64.zip" LogicalName="Payload.zip" Condition="Exists('../../publish/Charmly-v0.9.3-Windows-x64.zip')" />
   </ItemGroup>
 
 </Project>

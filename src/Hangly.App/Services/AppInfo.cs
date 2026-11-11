@@ -36,24 +36,9 @@ public static class AppInfo
         Self.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright
         ?? "Copyright © 2026 Tarun";
 
-    /// <summary>The Google Analytics Web stream's Measurement ID (<c>G-…</c>), empty when this build has none.</summary>
-    public static string Ga4MeasurementId { get; } = Metadata("HanglyGa4MeasurementId") ?? string.Empty;
-
-    /// <summary>The stream's Measurement Protocol API secret, empty when this build has none.</summary>
-    public static string Ga4ApiSecret { get; } = Metadata("HanglyGa4ApiSecret") ?? string.Empty;
-
     /// <summary>Major.minor.build.patch, such as <c>10.0.19045.6456</c>.</summary>
-    /// <remarks>
-    /// <see cref="Environment.OSVersion"/> always reports the last part as 0, so the registry
-    /// could not tell a PC three years behind on updates from a current one. The patch level
-    /// is the UBR value Windows keeps in the registry; without it, the old answer stands.
-    /// </remarks>
     public static string WindowsVersion { get; } = ReadWindowsVersion();
 
-    /// <summary>The installation registry's URL, empty when this build has none.</summary>
-    public static string RegistryUrl { get; } = Metadata("HanglyRegistryUrl") ?? string.Empty;
-
-    /// <summary>The machine's architecture in the registry's vocabulary: "arm64" or "x64", as on macOS.</summary>
     public static string Architecture { get; } =
         System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64
             ? "arm64"
@@ -66,9 +51,6 @@ public static class AppInfo
 
     /// <summary>The creator's handle, written the one way it is written.</summary>
     public static string CreatorHandle => "Tarun";
-
-    /// <summary>The four things the creator makes, in the order macOS lists them.</summary>
-    public static string CreatorDisciplines => "Photography • Film • Design • Code";
 
     public static string GitHubUrl => "https://github.com/tarun33333/Charmly";
 

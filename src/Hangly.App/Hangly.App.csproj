@@ -58,21 +58,7 @@
     <Authors>Tarun</Authors>
     <Copyright>Copyright © 2026 Tarun</Copyright>
 
-    <!--
-      Google Analytics (the same property as macOS's Firebase Analytics, through its Web
-      stream's Measurement Protocol). Never written here: the release workflow passes them
-      from repository secrets (-p:HanglyGa4MeasurementId=G-... -p:HanglyGa4ApiSecret=...).
-      Empty, as in every developer build, means no analytics and nothing sent.
-    -->
-    <HanglyGa4MeasurementId Condition="'$(HanglyGa4MeasurementId)' == ''"></HanglyGa4MeasurementId>
-    <HanglyGa4ApiSecret Condition="'$(HanglyGa4ApiSecret)' == ''"></HanglyGa4ApiSecret>
-    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">8</HanglyBuildNumber>
-    <!--
-      The installation registry's URL. Never written here: the release workflow passes it
-      from the HANGLY_REGISTRY_URL repository secret (-p:HanglyRegistryUrl=...). Empty, as
-      in every developer build, means no registry and nothing sent.
-    -->
-    <HanglyRegistryUrl Condition="'$(HanglyRegistryUrl)' == ''"></HanglyRegistryUrl>
+    <HanglyBuildNumber Condition="'$(HanglyBuildNumber)' == ''">9</HanglyBuildNumber>
     <!--
       A folder of packages to update from instead of GitHub Releases. Empty in every
       release, which release.yml checks. Set only to test silent updating end to end:
@@ -132,10 +118,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AssemblyMetadata Include="HanglyGa4MeasurementId" Value="$(HanglyGa4MeasurementId)" />
-    <AssemblyMetadata Include="HanglyGa4ApiSecret" Value="$(HanglyGa4ApiSecret)" />
     <AssemblyMetadata Include="HanglyBuildNumber" Value="$(HanglyBuildNumber)" />
-    <AssemblyMetadata Include="HanglyRegistryUrl" Value="$(HanglyRegistryUrl)" />
     <AssemblyMetadata Include="HanglyUpdateFeed" Value="$(HanglyUpdateFeed)" />
   </ItemGroup>
 

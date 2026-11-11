@@ -99,26 +99,15 @@ public sealed partial class AppEnvironment : IDisposable
             RebuildIndex();
         }
 
-        // Google Analytics when this build has its stream, nothing when it does not. A build
-        // without it runs with no analytics at all, which is a supported state and the
-        // default one.
-        analytics = (IUserAnalyticsService?)Ga4UserAnalytics.For(AppInfo.Ga4MeasurementId, AppInfo.Ga4ApiSecret)
-            ?? new NoOpUserAnalytics();
+        // Charmly is 100% private and offline: no telemetry, no analytics, no remote registry.
+        analytics = new NoOpUserAnalytics();
         HanglyAnalytics.Use(analytics);
 
-        // A first identify made offline goes as soon as the network comes back, not on
-        // the next launch. The manager ignores this when nothing is pending, which is
-        // nearly always, and marshals it onto this thread itself.
-        // The installation registry: this installation's one document, kept up to date. No
-        // client when the build has no registry URL, which is every build but a release.
         registry = new Hangly.Core.Registry.RegistrySync(
             new Hangly.Core.Registry.InstallationStore(),
-            Installation.HttpRegistryClient.For(AppInfo.RegistryUrl),
+            null,
             this.store,
-            new Hangly.Core.Registry.PlatformFacts(AppInfo.WindowsVersion, AppInfo.Version, AppInfo.Architecture),
-            analytics: analytics,
-            crashes: CrashReporter.Pending,
-            installEvidence: () => Hangly.Core.Registry.InstallEvidence.Earliest(Hangly.Core.Registry.InstallEvidence.DefaultFolders));
+            new Hangly.Core.Registry.PlatformFacts(AppInfo.WindowsVersion, AppInfo.Version, AppInfo.Architecture));
 
         System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
 
@@ -503,12 +492,6 @@ public sealed partial class AppEnvironment : IDisposable
         }
         NoteVersion();
         NoteChoices(store.Settings.Overlay);
-
-        // Creates the installation's permanent ID on its first launch; sends the record once
-        // there is a nickname to send, and any crash reports waiting from the last run. Not
-        // awaited — the registry is never on the path to a charm.
-        _ = registry.Start();
-        Diagnostics.Log($"registry {(registry.IsConfigured ? "configured" : "not configured in this build")}");
 
         if (store.Settings.Overlay.IsEnabled)
         {
@@ -1088,7 +1071,7 @@ public sealed partial class AppEnvironment : IDisposable
             }
 
             bool created = customize is null;
-            customize ??= new Customize.CustomizeWindow(store, launchAtLogin, registry, this);
+            customize ??= new Customize.CustomizeWindow(store, launchAtLogin, this);
             if (created)
             {
                 Diagnostics.Log("customize window created");

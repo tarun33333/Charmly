@@ -5,7 +5,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = "v0.9.2",
+    [string]$Version = "v0.9.3",
     [string]$Architecture = "win-x64"
 )
 

@@ -45,29 +45,5 @@ internal static class Uninstall
         {
             Diagnostics.Failure("uninstall: run-at-login", exception);
         }
-
-        try
-        {
-            if (Installation.HttpRegistryClient.For(AppInfo.RegistryUrl) is not { } registry)
-            {
-                Diagnostics.Log("uninstall: no registry in this build; nothing sent");
-                return;
-            }
-
-            // The registry marks the installation uninstalled (uninstalledAt), which the dashboard counts at once
-            // rather than waiting for thirty days of silence. installation.json stays in %AppData%, so a reinstall
-            // is the same installation and is counted as one.
-            using var timeout = new CancellationTokenSource(SendLimit);
-            Task<bool> sending = Core.Registry.RegistrySync.SendUninstallAsync(
-                new Core.Registry.InstallationStore(), registry, timeout.Token);
-            bool finished = sending.Wait(SendLimit);
-            Diagnostics.Log(finished && sending.Result
-                ? "uninstall: reported to the registry"
-                : "uninstall: not reported (never registered, offline or too slow)");
-        }
-        catch (Exception exception)
-        {
-            Diagnostics.Failure("uninstall: report", exception);
-        }
     }
 }

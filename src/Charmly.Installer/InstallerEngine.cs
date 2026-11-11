@@ -36,14 +36,14 @@ public static class InstallerEngine
 
         if (zipStream == null)
         {
-            string adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Charmly-v0.9.2-Windows-x64.zip");
+            string adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Charmly-v0.9.3-Windows-x64.zip");
             if (!File.Exists(adjacentZip))
             {
-                adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Charmly-v0.9.1-Windows-x64.zip");
+                adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Charmly-v0.9.2-Windows-x64.zip");
             }
             if (!File.Exists(adjacentZip))
             {
-                adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\publish\Charmly-v0.9.2-Windows-x64.zip");
+                adjacentZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\publish\Charmly-v0.9.3-Windows-x64.zip");
             }
             if (File.Exists(adjacentZip))
             {
@@ -153,7 +153,7 @@ public static class InstallerEngine
             if (uninstKey != null)
             {
                 uninstKey.SetValue("DisplayName", "Charmly");
-                uninstKey.SetValue("DisplayVersion", "0.9.2");
+                uninstKey.SetValue("DisplayVersion", "0.9.3");
                 uninstKey.SetValue("Publisher", "Tarun");
                 uninstKey.SetValue("DisplayIcon", $"{exePath},0");
                 uninstKey.SetValue("InstallLocation", targetDir);

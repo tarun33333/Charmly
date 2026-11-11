@@ -43,7 +43,6 @@ public sealed partial class CustomizeWindow : Window
 {
     private readonly SettingsStore store;
     private readonly ILaunchAtLogin launchAtLogin;
-    private readonly Hangly.Core.Registry.RegistrySync registry;
     private readonly AppEnvironment environment;
     private readonly List<CharmTile> tiles = [];
     private readonly Dictionary<string, CharmTile> tilesById = new(StringComparer.Ordinal);
@@ -77,12 +76,10 @@ public sealed partial class CustomizeWindow : Window
     public CustomizeWindow(
         SettingsStore store,
         ILaunchAtLogin launchAtLogin,
-        Hangly.Core.Registry.RegistrySync registry,
         AppEnvironment environment)
     {
         this.store = store;
         this.launchAtLogin = launchAtLogin;
-        this.registry = registry;
         this.environment = environment;
 
         // Held for the whole of construction, and dropped by Load's finally.
@@ -1008,11 +1005,6 @@ public sealed partial class CustomizeWindow : Window
         // nothing to do with. Hidden with the page they belong to, which also gives the
         // other three the full width.
         DetailPanel.Visibility = page == "charms" ? Visibility.Visible : Visibility.Collapsed;
-
-        if (page == "about")
-        {
-            LoadInstallation();
-        }
     }
 
     // --- Updates ------------------------------------------------------------------
@@ -1294,42 +1286,6 @@ public sealed partial class CustomizeWindow : Window
 
     private void OnSuggestClicked(object sender, RoutedEventArgs args) =>
         _ = Windows.System.Launcher.LaunchUriAsync(new Uri(AppInfo.SuggestMailUrl));
-
-    /// <summary>What the installation registry holds for this machine, for whoever wants to check.</summary>
-    /// <remarks>
-    /// macOS's <c>InstallationPanel</c>. In the app rather than behind a developer flag because the argument for
-    /// registering anything at all is that it can be inspected. The installation ID is masked: enough to tell two
-    /// machines apart, not worth writing down.
-    /// </remarks>
-    private void LoadInstallation()
-    {
-        Hangly.Core.Registry.InstallationRecord? record = registry.Store.Record;
-        AnalyticsState.Text = !registry.IsConfigured
-            ? "Not configured in this build"
-            : record?.Uploaded is null
-                ? registry.LastFailure is null ? "Waiting to register" : "Will retry when online"
-                : $"Registered — last seen {record.LastSeen?.LocalDateTime:d}";
-        AnalyticsEndpoint.Text = string.Join(", ", new[] { record?.City, record?.Region, record?.Country }.Where(part => !string.IsNullOrEmpty(part)))
-            is { Length: > 0 } place ? place : "Not known yet";
-        string id = record?.InstallationId.ToString("D") ?? string.Empty;
-        AnalyticsIdentifier.Text = id.Length > 0 ? $"{id[..8]}-••••-••••-••••-••••••••{id[^4..]}" : "none yet";
-        AnalyticsLastSent.Text = registry.LastAcceptedAt is DateTimeOffset at ? $"{at.LocalDateTime:HH:mm:ss}" : "nothing this session";
-        AnalyticsUserName.Text = record is { Nickname.Length: > 0 } ? record.Nickname : "(not set)";
-        AnalyticsFields.Text = "installationId, nickname, city, region, country, platform, osName, osVersion, appVersion, "
-            + "architecture, firstSeen, lastSeen, activeDays, retentionDays, crash reports";
-    }
-
-    /// <summary>Appearance → Privacy → View privacy details: About's Installation panel, opened.</summary>
-    private void OnPrivacyDetails(object sender, RoutedEventArgs args)
-    {
-        ShowSection("about");
-        AnalyticsSection.IsExpanded = true;
-        AnalyticsSection.StartBringIntoView();
-        LoadInstallation();
-    }
-
-    private void OnRefreshAnalytics(object sender, RoutedEventArgs args) => LoadInstallation();
-
 
     private void OnCharmClicked(object sender, ItemClickEventArgs args)
     {

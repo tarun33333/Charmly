@@ -213,7 +213,7 @@ public sealed partial class AnnouncementFeed : IDisposable
             && Uri.TryCreate(overridden, UriKind.Absolute, out Uri? custom)
             && (custom.Scheme == Uri.UriSchemeHttps || custom.IsLoopback)
             ? [custom]
-            : FromRegistry(AppInfo.RegistryUrl);
+            : [];
 
     public static IReadOnlyList<Uri> FromRegistry(string registry)
     {
